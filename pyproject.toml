@@ -4,18 +4,42 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "corellia"
-version = "0.1.0"
-description = "CLI framework/toolchain for Python projects with initial Django specialization"
+version = "1.0.0"
+description = "A Python CLI framework for project scaffolding and environment synchronization."
 readme = "README.md"
 requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+  { name = "Lorenzo Petrecca" }
+]
+keywords = ["cli", "python", "scaffolding", "environment", "framework"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Build Tools",
+  "Topic :: Utilities",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux"
+]
 dependencies = [
-  "typer>=0.12,<1.0"
+  "typer>=0.12,<1.0",
+  "tomli-w>=1.0,<2.0",
 ]
 
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0,<9.0"
 ]
+
+[project.urls]
+Homepage = "https://github.com/lorenzo-petrecca/Corellia"
+Repository = "https://github.com/lorenzo-petrecca/Corellia"
+Issues = "https://github.com/lorenzo-petrecca/Corellia/issues"
 
 [project.scripts]
 core = "corellia.cli:app"
