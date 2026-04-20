@@ -32,7 +32,7 @@ Corellia orchestrates them into a **single, consistent interface**, reducing set
 ## Installation
 
 ```bash
-pipx install corellia
+pipx install corellia-cli
 ```
 
 > [!WARNING]

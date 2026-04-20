@@ -19,13 +19,13 @@ Corellia can be installed globally using `pipx` (recommended) or `pip`.
 **Using pipx**
 
 ```bash
-pipx install corellia
+pipx install corellia-cli
 ```
 
 **Using pip**
 
 ```bash
-pip install corellia
+pip install corellia-cli
 ```
 
 Once installed, the **`core`** command will be available globally.
