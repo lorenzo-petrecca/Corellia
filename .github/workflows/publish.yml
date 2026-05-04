@@ -1,0 +1,31 @@
+name: Publish Corellia release on PyPI
+
+on: 
+    release: 
+        types: [published]
+
+permissions: 
+    contents: read
+    id-token: write
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+
+        environment:
+            name: pypi
+
+        steps:
+            -   name: Checkout repository
+                uses: actions/checkout@v6
+            
+            -   name: Setup python
+                uses: actions/setup-python@v6
+                with:
+                    python-version: "3.12"
+
+            -   name: Build package
+                run: python -m build
+
+            -   name: Publish package
+                uses: pypa/gh-action-pypi-publish@release/v1

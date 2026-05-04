@@ -29,6 +29,8 @@ class CategoryService :
         elif self.category == "deploy" :
             self._scaffold_deploy()
 
+        self._create_readme()
+
 
     def _scaffold_package (self) -> None :
         module_path = self.root / "src" / self.project_name
