@@ -1,4 +1,5 @@
 import typer
+import importlib.metadata
 from corellia.commands import (
     create,
     sync,
@@ -10,10 +11,47 @@ from corellia.commands import (
     build,
 )
 
+
+PACKAGE_NAME = "corellia-cli"
+
+
+
+def version_cb (value: bool) -> None :
+    if not value :
+        return
+    
+    try :
+        cli_version = importlib.metadata.version(PACKAGE_NAME)
+    except importlib.metadata.PackageNotFoundError:
+        cli_version = "unknown"
+
+    typer.echo(f"{cli_version}")
+    raise typer.Exit()
+
+
+
+
 app = typer.Typer(
     help="Corellia CLI",
     no_args_is_help=True
 )
+
+
+@app.callback()
+def main(
+    show_version: bool = typer.Option(
+        False,
+        "--version",
+        "-v",
+        callback=version_cb,
+        is_eager=True,
+        help="Show Corellia CLI version",
+    )
+) -> None :
+    pass
+
+
+
 
 app.command(
     name="create",
@@ -55,9 +93,3 @@ app.command(
     help="Build the current Corellia package project."
 )(build)
 
-
-
-@app.callback()
-def main():
-    """Corellia CLI."""
-    pass

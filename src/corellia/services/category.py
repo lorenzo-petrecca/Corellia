@@ -37,7 +37,7 @@ class CategoryService :
         ScaffoldService.ensure_dir(module_path)
         ScaffoldService.write_file(
             module_path / "__init__.py",
-            f'__version__ = {self.config.get_project_version()}',
+            f'__version__ = "{self.config.get_project_version()}"',
             "",
         )
 
