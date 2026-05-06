@@ -906,7 +906,7 @@ class ProjectManager :
     
 
 
-    def init_build (self) -> Output :
+    def init_build (self, force: bool) -> Output :
         prepared = self._setup_context()
         if not prepared.ok :
             return prepared
@@ -923,6 +923,29 @@ class ProjectManager :
                 exit_code=1,
             )
         
+        # controlla se esiste già l'arteffatto pyproject. Se esiste è richiesto il flag --force per rigenerarlo.
+        if (self.root / "pyproject.toml").exists() and force == False :
+            warn = TextStyle().from_level("warning")
+            warn_rev = TextStyle().from_level("warning")
+            warn_rev.text_transform = TextTransform().REVERSE
+            warn_rev.prefix = ""
+            return Output(
+                Text(
+                    "pyproject.toml already exists. Use:",
+                    style=warn,
+                ),
+                Text(
+                    "core init-build --force",
+                    style=warn_rev,
+                ),
+                Text(
+                    "to regenerate it.",
+                    style=warn,
+                ),
+                ok=False,
+                exit_code=1,
+            )        
+
         category_service = CategoryService(self.root)
         if not category_service.validate_layout() :
             return Output (
