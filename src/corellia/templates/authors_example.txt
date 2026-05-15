@@ -1,0 +1,11 @@
+# Optional authors.
+# You can define one or more authors using the following format.
+# The email field is optional.
+#
+# [[authors]]
+# name = "Author Name"
+# email = "author@example.com"
+#
+# [[authors]]
+# name = "Second Author"
+# email = "second.author@example.com"

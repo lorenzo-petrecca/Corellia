@@ -2,9 +2,9 @@ from pathlib import Path
 import subprocess
 import shutil
 import shlex
-from string import Template
+from typing import cast
 
-from corellia.config import CorelliaConfig, ScriptConfig
+from corellia.config import CorelliaConfig, ScriptSectionModel
 from corellia import constants as cs
 from corellia.managers.package import PackageManager
 
@@ -66,7 +66,7 @@ class VirtualEnvManager :
             shutil.rmtree(root)
 
 
-    def resolve_strict_command (self, script: ScriptConfig) -> list[str] :
+    def resolve_strict_command (self, script: ScriptSectionModel) -> list[str] :
         parts = shlex.split(script.command)
 
         if not parts :
@@ -87,7 +87,7 @@ class VirtualEnvManager :
         return parts
     
 
-    def resolve_shell_command (self, script: ScriptConfig) -> str :
+    def resolve_shell_command (self, script: ScriptSectionModel) -> str :
         command = script.command.strip()
         if not command :
             raise ValueError ("Command cannot be empty")
@@ -97,7 +97,7 @@ class VirtualEnvManager :
 
 
     
-    def run (self, script: ScriptConfig) -> None :
+    def run (self, script: ScriptSectionModel) -> None :
         if script.mode == "strict" :
             resolved = self.resolve_strict_command(script)
             subprocess.run(
@@ -146,4 +146,4 @@ class VirtualEnvManager :
 
     @classmethod
     def recreate_from_config (cls, project_dir: Path, config: CorelliaConfig) -> "VirtualEnvManager" :
-        return cls(project_dir, config.get_virtual_env_name())
+        return cls(project_dir, config.environment.venv)

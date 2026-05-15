@@ -1,15 +1,26 @@
 from pathlib import Path
 import tomllib
 import tomli_w
-from typing import Any
-from corellia.models import CreateModel, ScriptConfig, SCRIPT_MODES
+from importlib.resources import files
+from corellia.models import (
+    CreateModel, 
+    CorelliaConfigModel,
+    ProjectSectionModel,
+    EnvironmentSectionModel,
+    FrameworkSectionModel,
+    AuthorSectionModel,
+    UrlsSectionModel,
+    ScriptSectionModel, 
+    ConfigIntegrityReport,
+)
 from corellia import constants as cs
+    
 
 
 class CorelliaConfig :
 
-    def __init__(self, data: dict[str, Any], path: Path) -> None:
-        self.data = data
+    def __init__(self, model: CorelliaConfigModel, path: Path) -> None:
+        self.model = model
         self.path = path
 
     @classmethod
@@ -17,191 +28,170 @@ class CorelliaConfig :
         with path.open('rb') as file :
             data = tomllib.load(file)
 
-        return cls(data=data, path = path)
+        model = CorelliaConfigModel.from_dict(data)
+        return cls(model=model, path = path)
 
 
     @classmethod
     def from_model (
         cls, 
         path: Path, 
-        model: CreateModel, 
+        create_model: CreateModel, 
         dependencies: dict[str, str]
     ) -> "CorelliaConfig" :
-        
-        django_scripts_template = {
-            "dev": {
-                "command": "python manage.py runserver",
-                "mode": "strict",
-                "description": "Run django development server",
-            },
-            "migrate": {
-                "command": "python manage.py migrate",
-                "mode": "strict",
-                "description": "Apply database migrations",
-            },
-            "makemigrations": {
-                "command": "python manage.py makemigrations",
-                "mode": "strict",
-                "description": "Create new django migrations",
-            },
-            "shell": {
-                "command": "python manage.py shell",
-                "mode": "strict",
-                "description": "Open django shell",
-            },
+
+        django_scripts = {
+            "dev": ScriptSectionModel(
+                command="python manage.py runserver",
+                mode="strict",
+                description="Run django development server",
+            ),
+            "migrate": ScriptSectionModel(
+                command="python manage.py migrate",
+                mode="strict",
+                description="Apply database migrations",
+            ),
+            "makemigrations": ScriptSectionModel(
+                command="python manage.py makemigrations",
+                mode="strict",
+                description="Create new django migrations",
+            ),
+            "shell": ScriptSectionModel(
+                command="python manage.py shell",
+                mode="strict",
+                description="Open django shell",
+            ),
         }
 
-        demo_scripts_template = {
-            "check": {
-                "command": "python --version",
-                "mode": "strict",
-                "description": "Check that the project Python environment works",
-            }
+        scripts_template = {
+            "check": ScriptSectionModel(
+                command="python --version",
+                mode="strict",
+                description="Check that the project Python environment works",
+            ),
         }
 
+        framework = create_model.project_framework
+        if framework is not None and framework.lower().strip() == "django" :
+            scripts_template.update(django_scripts)
 
-        scripts_template = django_scripts_template if model.framework.answer == "django" else demo_scripts_template
 
-        data = {
-            cs.PROJECT_SECTION_NAME: {
-                "name": model.name.answer,
-                "version": "0.1.0",
-                "python": model.python_version.answer,
-                "category": model.category.answer,
-            },
-            cs.ENVIRONMENT_SECTION_NAME: {
-                "manager": cs.PY_ENV_COMMAND,
-                "venv": cs.DEFAULT_VENV_NAME,
-            },
-            cs.FRAMEWORK_SECTION_NAME: {
-                "name": model.framework.answer,
-            },
-            cs.DEPENDENCY_SECTION_NAME: dependencies,
-            cs.DEV_DEPENDENCY_SECTION_NAME: {},
-            cs.SCRIPTS_SECTION_NAME: scripts_template
-        }
+        data = CorelliaConfigModel(
+            project=ProjectSectionModel(
+                name=create_model.project_name,
+                version="0.1.0",
+                python=create_model.project_python_version,
+                category=create_model.project_category,
+            ),
+            environment=EnvironmentSectionModel(),
+            framework=FrameworkSectionModel(
+                name=framework,
+            ),
+            dependencies=dependencies,
+            scripts=scripts_template,
+        )
 
-        return cls(data=data, path=path)
+
+        return cls(model=data, path=path)
     
     
 
     def save (self) -> None:
         with self.path.open('wb') as file :
-            tomli_w.dump(self.data, file)
+            tomli_w.dump(self.model.to_dict(), file)
 
-    def update (self, data: dict[str, Any]) :
-        self.data = data
+        if not self.authors :
+            self._append_template("authors_example.txt")
+    
 
-        
-    def get_project_version (self) -> str :
-        return self.data[cs.PROJECT_SECTION_NAME]['version']
+ 
+    @property
+    def project (self) -> ProjectSectionModel :
+        return self.model.project
     
-    def get_project_name (self) -> str :
-        return self.data[cs.PROJECT_SECTION_NAME]['name']
+    @property
+    def environment (self) -> EnvironmentSectionModel :
+        return self.model.environment
     
-    def get_project_python_version (self) -> str :
-        return self.data[cs.PROJECT_SECTION_NAME]['python']
+    @property
+    def framework (self) -> FrameworkSectionModel :
+        return self.model.framework
     
-    def get_project_category (self) -> str :
-        return self.data[cs.PROJECT_SECTION_NAME]['category']
+    @property
+    def authors (self) -> list[AuthorSectionModel] :
+        return self.model.authors
     
-    def get_environment_manager(self) -> str:
-        return self.data[cs.ENVIRONMENT_SECTION_NAME]["manager"]
+    @property
+    def urls (self) -> UrlsSectionModel :
+        return self.model.urls
     
-    def get_framework_name (self) -> str :
-        return self.data[cs.FRAMEWORK_SECTION_NAME]['name']
+    @property
+    def dependencies (self) -> dict[str, str] :
+        return self.model.dependencies
     
-    def get_dependencies (self) -> dict[str, str] :
-        return self.data.get(cs.DEPENDENCY_SECTION_NAME, {})
+    @property
+    def dev_dependencies (self) -> dict[str, str] :
+        return self.model.dev_dependencies
     
-    def get_dev_dependencies (self) -> dict[str, str] :
-        return self.data.get(cs.DEV_DEPENDENCY_SECTION_NAME, {})
+    @property
+    def scripts (self) -> dict[str, ScriptSectionModel] :
+        return self.model.scripts
+    
+
+    
     
     def get_dependency_version (self, package: str) -> str | None :
-        return self.get_dependencies().get(package)
+        return self.dependencies.get(package)
     
     def get_dev_dependency_version (self, package: str) -> str | None :
-        return self.get_dev_dependencies().get(package)
-    
-    def get_virtual_env_name (self) -> str :
-        return self.data[cs.ENVIRONMENT_SECTION_NAME]['venv']
-    
-    def get_scripts(self) -> dict[str, dict[str, Any]] :
-        return self.data.get(cs.SCRIPTS_SECTION_NAME, {})
-    
-    def get_script (self, name: str) -> ScriptConfig | None :
-        raw = self.get_scripts().get(name, None)
-        if raw is None :
-            return None
-        
-        if not isinstance(raw, dict) :
-            raise ValueError (
-                f"Script '{name}' must be declared as a table in [{cs.SCRIPTS_SECTION_NAME}.{name}]"
-            )
-        
-        command = raw.get('command')
-        mode = raw.get('mode')
-        description = raw.get('description')
-
-        if not isinstance(command, str) or not command.strip() :
-            raise ValueError(
-                f"Script '{name}' must define a non-empty command."
-            )
-        
-        if mode not in SCRIPT_MODES :
-            raise ValueError (
-                f"Script '{name}' must define a valid mode"
-            )
-        
-        if description is not None and not isinstance(description, str) : 
-            raise ValueError(
-                f"Script '{name}' has an invalid 'description'. It must be a string."
-            )
-
-        return ScriptConfig (
-            name=name,
-            mode=mode,
-            command=command,
-            description=description,
-        )
-    
-    def get_script_list (self) -> list[ScriptConfig] : 
-        """Ottiene script già validati e in forma di lista per poter essere usati facilmente"""
-        scripts: list[ScriptConfig] = []
-
-        for name in self.get_scripts() :
-            script = self.get_script(name)
-            if script is not None :
-                scripts.append(script)
-
-        return scripts
-
+        return self.dev_dependencies.get(package)
     
 
+
+    def get_script (self, name: str) -> ScriptSectionModel | None :
+        return self.model.scripts.get(name)
+    
+    
 
     def has_dependency (self, package: str) -> bool :
-        return package in self.get_dependencies()
+        return package in self.dependencies
     
     def has_dev_dependency (self, package: str) -> bool :
-        return package in self.get_dev_dependencies()
+        return package in self.dev_dependencies
     
 
     def has_script (self, name: str) -> bool :
-        return name in self.get_scripts()
+        return name in self.scripts
     
 
 
     
     def set_dependency (self, package: str, version: str, dev: bool) -> None:
-        key = cs.DEV_DEPENDENCY_SECTION_NAME if dev else cs.DEPENDENCY_SECTION_NAME
-        deps = dict(self.data.get(key, {}))
-        deps[package] = version
-        self.data[key] = deps
+        if dev :
+            self.model.dev_dependencies[package] = version
+        else :
+            self.model.dependencies[package] = version
+
         self.save()
 
     def remove_dependency (self, package: str, dev: bool) -> None :
-        key = cs.DEV_DEPENDENCY_SECTION_NAME if dev else cs.DEPENDENCY_SECTION_NAME
-        deps = dict(self.data.get(key, {}))
-        deps.pop(package, None)
-        self.data[key] = deps
+        if dev :
+            self.model.dev_dependencies.pop(package, None)
+        else :
+            self.model.dependencies.pop(package, None)
+
         self.save()
+
+
+    @property
+    def integrity(self) -> ConfigIntegrityReport:
+        return self.model.integrity
+
+
+
+    def _append_template (self, filename: str) -> None :
+        template = files("corellia.templates").joinpath(filename)
+
+        with self.path.open("a", encoding="utf-8") as file :
+            file.write("\n")
+            file.write(template.read_text(encoding="utf-8"))

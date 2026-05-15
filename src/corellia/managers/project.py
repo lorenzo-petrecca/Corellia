@@ -37,7 +37,7 @@ class ProjectManager :
 
 
     def assign_name (self, name: str) -> Output:
-        pattern = r"^[a-z0-9_-]+$"
+        pattern = r"[a-z0-9][a-z0-9_-]*"
         if not bool(re.fullmatch(pattern, name)) :
             return Output (
                 Text(
@@ -248,17 +248,17 @@ class ProjectManager :
         # 3. Creazione file di config (corellia.toml) con impostazioni fornite tramite cli
         self.config = CorelliaConfig.from_model(
             path=(self.root / cs.CORELLIA_CONFIG_FILE), 
-            model=model,
+            create_model=model,
             dependencies=resolved_packages,
         )
         self.config.save()
 
         # 4. Applica versione python all'area di progetto
-        python_version = self.config.get_project_python_version()
+        python_version = self.config.project.python
         self.python_manager.set_local_version(self.root, python_version)
 
         # 5. Creazione ambiente virtuale python e salvataggio del manager
-        venv_name = self.config.get_virtual_env_name()
+        venv_name = self.config.environment.venv
         self.virtual_env = self.python_manager.create_virtual_env(self.root, venv_name)
 
         # 6. Creazione e aggiornamento del package manager nell'ambiente virtuale python
@@ -270,7 +270,7 @@ class ProjectManager :
         dev_deps = self.package_manager.install_dev_deps(self.root, self.config)
 
         # 8. Inizializzazione del framework scelto
-        framework = self.config.get_framework_name()
+        framework = self.config.framework.name
         if framework == "django" :
             from corellia.services.django import DjangoService
             django = DjangoService(self.virtual_env.get_python_path())
@@ -301,8 +301,8 @@ class ProjectManager :
             Text(
                 f"- path: {self.root}",
                 f"- python: {python_version}",
-                f"- venv: {self.config.get_virtual_env_name()}",
-                f"- framework: {self.config.get_framework_name()}",
+                f"- venv: {self.config.environment.venv}",
+                f"- framework: {self.config.framework.name}",
                 f"- git: {git_avail}",
                 ""
             ),
@@ -338,6 +338,46 @@ class ProjectManager :
             )
         
         self.config = CorelliaConfig.load(config_path)
+
+        # controllo integrità del corellia.toml di progetto
+        integrity = self.config.integrity
+
+        if not integrity.ok :
+            error_lines = [
+                f"{field}: {message}"
+                for field, errors in integrity.errors.items()
+                for message in errors
+            ]
+
+            warning_lines = [
+                f"{field}: {message}"
+                for field, warnings in integrity.warnings.items()
+                for message in warnings
+            ]
+
+            payload = [
+                Text(
+                    "Invalid corellia.toml",
+                    *error_lines,
+                    style=TextStyle().from_level("error"),
+                )
+            ]
+
+            if warning_lines :
+                payload.append(
+                    Text(
+                        "",
+                        *warning_lines,
+                        style=TextStyle().from_level("warning")
+                    )
+                )
+
+            return Output(
+                *payload,
+                ok=False,
+                exit_code=1,
+            )
+
         self.python_manager = PythonEnvManager.recreate_from_config(self.config)
         self.virtual_env = VirtualEnvManager.recreate_from_config(self.root, self.config)
 
@@ -366,7 +406,7 @@ class ProjectManager :
             )
         
         # Controllo esistenza della versione, specificata nel config, di python nell'ambiente root
-        python_version = self.config.get_project_python_version()
+        python_version = self.config.project.python
         if not self.python_manager.is_version_installed(python_version) :
             return Output (
                 Text(
@@ -403,7 +443,7 @@ class ProjectManager :
         if recreate :
             self.virtual_env.remove()
 
-        self.virtual_env.ensure_created()   # controllo esistenza ambiente
+        self.virtual_env.ensure_created(python_executable)   # controllo esistenza ambiente
         self.package_manager = self.virtual_env.package_manager()   # ricrea il package manager
 
 
@@ -429,8 +469,8 @@ class ProjectManager :
         
         # Installazione della versione specificata nel config del pacchetto specificato nel comando
         version = None
-        deps = self.config.get_dependencies()
-        dev_deps = self.config.get_dev_dependencies()
+        deps = self.config.dependencies
+        dev_deps = self.config.dev_dependencies
         if package in deps :
             version = deps[package]
         elif package in dev_deps :
@@ -687,8 +727,8 @@ class ProjectManager :
                 ),
                 Text(
                     "Note: transitive dependencies may still remain installed.",
-                    f"Run command: `core sync --clean` if you need a fully clean environment.",
-                    style=TextStyle().from_level("warning"),
+                    "Run command:",
+                    # style=TextStyle().from_level("warning"),
                 ),
                 Text("core sync --clean", style=TextStyle(text_transform=TextTransform.REVERSE)),
                 Text("if you need a fully clean environment."),
@@ -704,7 +744,7 @@ class ProjectManager :
             return ready
         
         # 2. Controllo esistenza sezione scripts nel config
-        scripts_raw = self.config.get_scripts()
+        scripts_raw = self.config.scripts
         if not scripts_raw :
             return Output (
                 Text(
@@ -731,10 +771,11 @@ class ProjectManager :
         if not check.ok :
             return check
         
-        
+
+        scripts = self.config.scripts
+
         # 3. Check esistenza script richiesto
         if not self.config.has_script(script_name) :
-            script_list = self.config.get_script_list()
             return Output (
                 Text(
                     f"Script '{script_name}' is not declared in {cs.CORELLIA_CONFIG_FILE}.",
@@ -748,8 +789,8 @@ class ProjectManager :
                 Table(
                     Row(["Script", "Mode", "Description"],),
                     *[
-                        Row([script.name, script.mode, script.description or ""],) 
-                        for script in script_list
+                        Row([name, script.mode, script.description or ""],) 
+                        for name, script in scripts.items()
                     ],
                 ),
                 ok=False,
@@ -775,7 +816,7 @@ class ProjectManager :
         except Exception as exc:
             return Output (
                 Text(
-                    f"Script '{script.name}' failed.",
+                    f"Script '{script_name}' failed.",
                     str(exc),
                     style=TextStyle().from_level("error")
                 ),
@@ -797,9 +838,9 @@ class ProjectManager :
         if not check.ok :
             return check
         
-        script_list = self.config.get_script_list()
+        scripts = self.config.scripts
 
-        if not script_list :
+        if not scripts :
             return Output (
                 Text(
                     f"No scripts found.",
@@ -815,8 +856,8 @@ class ProjectManager :
             Table(
                 Row(["Script", "Mode", "Description"],),
                 *[
-                    Row([script.name, script.mode, script.description or ""],) 
-                    for script in script_list
+                    Row([name, script.mode, script.description or ""],) 
+                    for name, script in scripts.items()
                 ],
             ),
             ok=True,
@@ -827,15 +868,15 @@ class ProjectManager :
 
     def info (self) -> Output :
         prepared = self._setup_context()
-        if not prepared :
+        if not prepared.ok :
             return prepared
         
         # Config properties
-        project_name = self.config.get_project_name()
-        project_version = self.config.get_project_version()
-        project_category = self.config.get_project_category()
-        framework = self.config.get_framework_name()
-        python_required = self.config.get_project_python_version()
+        project_name = self.config.project.name
+        project_version = self.config.project.version
+        project_category = self.config.project.category
+        framework = self.config.framework.name
+        python_required = self.config.project.python
 
         # Python environment properties
         python_manager_available = self.python_manager.exists()
@@ -854,8 +895,8 @@ class ProjectManager :
         venv_python_exists = venv_python_path.exists()
 
         # Dependencies
-        deps_count = len(self.config.get_dependencies())
-        dev_deps_count = len(self.config.get_dev_dependencies())
+        deps_count = len(self.config.dependencies)
+        dev_deps_count = len(self.config.dev_dependencies)
 
         # Git
         git = GitManager()
@@ -911,7 +952,7 @@ class ProjectManager :
         if not prepared.ok :
             return prepared
         
-        category = self.config.get_project_category()
+        category = self.config.project.category
         if category != "package" :
             return Output(
                 Text(
@@ -951,7 +992,7 @@ class ProjectManager :
             return Output (
                 Text (
                     "Invalid package layout for build initialization.",
-                    f"Expected package path: {str(self.root / "src" / self.config.get_project_name())}",
+                    f"Expected package path: {str(self.root / "src" / self.config.project.name)}",
                     style=TextStyle().from_level("error"),
                 ),
                 ok=False,
@@ -993,7 +1034,7 @@ class ProjectManager :
             return prepared
         
         # 2. Validate category
-        category = self.config.get_project_category()
+        category = self.config.project.category
         if category != "package" :
             return Output(
                 Text(
@@ -1028,7 +1069,7 @@ class ProjectManager :
             return Output (
                 Text (
                     "Invalid package layout for build initialization.",
-                    f"Expected package path: {str(self.root / "src" / self.config.get_project_name())}",
+                    f"Expected package path: {str(self.root / "src" / self.config.project.name)}",
                     style=TextStyle().from_level("error"),
                 ),
                 ok=False,

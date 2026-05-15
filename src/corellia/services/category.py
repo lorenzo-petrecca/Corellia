@@ -12,8 +12,8 @@ class CategoryService :
     def __init__(self, root: Path) -> None:
         self.root = root
         self.config = CorelliaConfig.load(self.root / cs.CORELLIA_CONFIG_FILE)
-        self.category = self.config.get_project_category()
-        self.project_name = self.config.get_project_name()
+        self.category = self.config.project.category
+        self.project_name = self.config.project.name
         
 
       
@@ -37,7 +37,7 @@ class CategoryService :
         ScaffoldService.ensure_dir(module_path)
         ScaffoldService.write_file(
             module_path / "__init__.py",
-            f'__version__ = "{self.config.get_project_version()}"',
+            f'__version__ = "{self.config.project.version}"',
             "",
         )
 
@@ -78,7 +78,7 @@ class CategoryService :
     @staticmethod
     def init_package_build (root: Path) :
         config = CorelliaConfig.load(root / cs.CORELLIA_CONFIG_FILE)
-        pyver = config.get_project_python_version()
+        pyver = config.project.python
         parts = pyver.split(".")
         major = int(parts[0])
         minor = int(parts[1])
@@ -90,14 +90,21 @@ class CategoryService :
                 "build-backend": "setuptools.build_meta",
             },
             "project": {
-                "name": config.get_project_name(),
-                "version": config.get_project_version(),
-                "description": "",
-                "readme": "README.md",
+                "name": config.project.name,
+                "version": config.project.version,
+                "description": config.project.description,
+                "readme": config.project.readme,
+                "license": config.project.license,
+                "keywords": config.project.keywords,
                 "requires-python": f"{pyver_from},{pyver_to}",
-                "dependencies": [f"{name}=={version}" for name, version in config.get_dependencies().items()],
+                "authors": [
+                    author.to_dict()
+                    for author in config.authors
+                ],
+                "urls": config.urls.to_dict(),
+                "dependencies": [f"{name}=={version}" for name, version in config.dependencies.items()],
                 "optional-dependencies": {
-                    "dev": [f"{name}=={version}" for name, version in config.get_dev_dependencies().items()]
+                    "dev": [f"{name}=={version}" for name, version in config.dev_dependencies.items()]
                 },
             },
             "tool": {
@@ -128,8 +135,7 @@ class CategoryService :
         return False
 
     def _validate_package (self) -> bool :
-        project_name = self.config.get_project_name()
-        package_dir = self.root / "src" / project_name
+        package_dir = self.root / "src" / self.config.project.name
         init_file = package_dir / "__init__.py"
 
         if not package_dir.exists() or not init_file.exists():
@@ -170,7 +176,7 @@ class CategoryService :
         if not dist_dir.exists():
             return
 
-        prefix = f"{self.project_name}-{self.config.get_project_version()}"
+        prefix = f"{self.project_name}-{self.config.project.version}"
 
         for path in dist_dir.iterdir():
             if not path.is_file():

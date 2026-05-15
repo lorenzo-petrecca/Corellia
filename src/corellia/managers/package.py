@@ -53,7 +53,7 @@ class PackageManager :
     def install_deps (self, project_dir: Path, config: CorelliaConfig) -> list[str]:
         return self._install_project_packages(
             project_dir,
-            config.get_dependencies(),
+            config.dependencies,
             cs.DEPENDENCY_SECTION_NAME,
         )
         
@@ -61,7 +61,7 @@ class PackageManager :
     def install_dev_deps (self, project_dir: Path, config: CorelliaConfig) -> list[str]:
         return self._install_project_packages(
             project_dir,
-            config.get_dev_dependencies(),
+            config.dev_dependencies,
             cs.DEV_DEPENDENCY_SECTION_NAME,
         )
     

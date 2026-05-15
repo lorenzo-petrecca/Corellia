@@ -274,9 +274,15 @@ class Table(Payload) :
         if self.num_cols == 0 :
             return ""
         
+        row_ref = self.rows[0] # riga di riferimento
+
         parts = []
-        for i, width in enumerate(self.col_widths) :
-            cell_total = self.rows[i].cell_padding.left + width + self.rows[i].cell_padding.right
+        for width in self.col_widths :
+            cell_total = (
+                row_ref.cell_padding.left 
+                + width 
+                + row_ref.cell_padding.right
+            )
             parts.append(Border.H * cell_total)
 
         return l + j.join(parts) + r

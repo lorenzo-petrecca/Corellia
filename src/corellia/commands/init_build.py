@@ -6,7 +6,7 @@ def init_build (
     force: bool = typer.Option(
         False,
         "--force",
-        help="Regenerate existing build files"
+        help="Regenerate pyproject.toml if it already exists."
     )
 ) -> None:
     """

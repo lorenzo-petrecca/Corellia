@@ -84,7 +84,7 @@ class PythonEnvManager(Manager) :
             return None
         
         config = CorelliaConfig.load(config_path)
-        return config.get_project_python_version()
+        return config.project.python
     
 
     def get_synced_local_version(self, project_dir: Path) -> str | None:
@@ -110,5 +110,5 @@ class PythonEnvManager(Manager) :
     
     @classmethod
     def recreate_from_config (cls, config: CorelliaConfig) -> "PythonEnvManager" :
-        return cls(config.get_environment_manager())
+        return cls(config.environment.manager)
         
