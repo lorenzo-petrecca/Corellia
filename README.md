@@ -241,17 +241,18 @@ Full documentation is available in the `/docs` directory.
 ## Current Status
 
 Corellia is currently focused on stabilizing the core project workflow experience for the `package` category.
-
 Some areas of the project are still considered experimental or only partially implemented.
 
 
-> [!IMPORTANT] Partially Supported
+> [!IMPORTANT]
+> **Partially supported**
 > - `app` project workflows
 > - `deploy` project workflows
 > - framework-specific integrations
 > - advanced build metadata generation
 
-> [!CAUTION] Not Yet Supported
+> [!CAUTION]
+> **Not Yet Supported**
 > - Windows support
 > - dependency structure validation inside `corellia.toml`
 > - standalone executable builds
