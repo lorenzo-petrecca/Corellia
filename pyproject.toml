@@ -12,7 +12,7 @@ license = { text = "MIT" }
 authors = [
   { name = "Lorenzo Petrecca" }
 ]
-keywords = ["cli", "python", "scaffolding", "environment", "framework"]
+keywords = ["cli", "python", "scaffolding", "environment", "framework", "tool"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Environment :: Console",

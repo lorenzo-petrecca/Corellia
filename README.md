@@ -1,5 +1,23 @@
-![Status](https://img.shields.io/badge/status-experimental-orange)
-![License](https://img.shields.io/badge/license-MIT-green)
+
+<p align="center">
+    <img src="https://img.shields.io/badge/status-experimental-orange?style=for-the-badge" />
+    <img src="https://img.shields.io/badge/python-3.12%2B-blue?style=for-the-badge" />
+    <a href="https://github.com/lorenzo-petrecca/Corellia?tab=MIT-1-ov-file">
+        <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" />
+    </a>
+</p>
+
+<p align="center">
+    <a href="https://pypi.org/project/corellia-cli/">
+        <img src="https://img.shields.io/pypi/v/corellia-cli?style=for-the-badge" />
+    </a>
+    <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey?style=for-the-badge" />
+    <a href="https://pypi.org/project/corellia-cli/">
+        <img src="https://img.shields.io/pypi/dm/corellia-cli?style=for-the-badge" />
+    </a>
+</p>
+
+---
 
 # Corellia
 
