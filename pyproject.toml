@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "corellia-cli"
-version = "1.1.1"
+version = "1.2.0"
 description = "A Python CLI framework for project scaffolding and environment synchronization."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -29,6 +29,7 @@ classifiers = [
 dependencies = [
   "typer>=0.12,<1.0",
   "tomli-w>=1.0,<2.0",
+  "packaging>=24.0,<27.0",
 ]
 
 [project.optional-dependencies]

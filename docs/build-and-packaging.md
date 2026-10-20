@@ -6,7 +6,7 @@ Corellia provides a structured workflow for building distributable Python packag
 
 This workflow separates:
 
-- **project configuration** → corellia.toml
+- **project configuration** → corellia.toml (including distinct distribution name and module name)
 - **build configuration** → pyproject.toml
 - **build artifacts** → files in dist/
 
@@ -32,7 +32,7 @@ Corellia follows a **two-step packaging model**:
 core init-build
 ```
 
-Generates `pyproject.toml`
+Generates `pyproject.toml`; use `core init-build --force` to overwrite an existing file. Existing manual customizations are not preserved.
 
 ### Step 2 — Build the package
 
@@ -64,7 +64,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "myproject"
+name = "my-project"
 version = "0.1.0"
 dependencies = [
   "requests==2.32.3"
@@ -81,6 +81,12 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 ```
+
+---
+
+The `[project].name` value is the **distribution name**, not necessarily the importable package. For example, `corellia.toml` may declare `name = "my-project"` and `module = "my_module"`: the generated wheel includes `my_module/`, while the distribution metadata identifies `my-project`. Setuptools discovers Python packages under `src/`.
+
+`core build` checks that the version declared in `pyproject.toml` matches `[project].version` in `corellia.toml`. A mismatch prevents a build until metadata is regenerated.
 
 ---
 
@@ -102,7 +108,7 @@ core build
 2. **Dependency synchronization**
     All dependencies are installed
 3. **Build configuration generation**
-    pyproject.toml is created
+    pyproject.toml is created (or deliberately regenerated with `--force`)
 4. **Build execution**
     Package artifacts are generated
 
@@ -184,7 +190,7 @@ Current limitations include:
 - no build support for `app`
 - no build support for `deploy`
 - no automated publishing (e.g. PyPI)
-- limited customization of `pyproject.toml`
+- limited customization of `pyproject.toml`; regeneration currently replaces the entire file
 
 ---
 
@@ -210,15 +216,15 @@ Planned improvements may include:
 - build support for `app` (e.g. standalone executables)
 - deployment artifacts for `deploy`
 - publishing workflows
-- extended build configuration
+- extended build configuration with preservation of user-managed fields
 
 ---
 
 ## Best practice
 
 - **Regenerate build configuration when needed**
-    `core init-build`
+    `core init-build` (or `core init-build --force` to regenerate)
 - **Build after updating version**
-    `core build`
+    First synchronize build metadata when necessary, then run `core build`
 - **Avoid modifying build artifacts**
     Artifacts in `dist/` should not be manually edited.

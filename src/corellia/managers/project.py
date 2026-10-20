@@ -1,8 +1,14 @@
 from pathlib import Path
 import re
+import tomllib
 from importlib.resources import files
 
+from corellia.utils.file_io import write_text
+
 from corellia.services.category import CategoryService
+from corellia.services.version import VersionService
+from corellia.services.module import ModuleService
+
 from corellia.managers.python_env import PythonEnvManager
 from corellia.managers.git import GitManager
 from corellia.managers.virtual_env import VirtualEnvManager
@@ -283,7 +289,10 @@ class ProjectManager :
         # 10. Creazione file .gitignore
         template = files("corellia.templates").joinpath("gitignore.txt")
         gitignore_path = self.root / ".gitignore"
-        gitignore_path.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
+        write_text(
+            gitignore_path,
+            template.read_text(encoding="utf-8")
+        )
 
         # 11. Inizializzazione git
         self.git = GitManager()
@@ -864,6 +873,151 @@ class ProjectManager :
             exit_code=0,
         )
 
+
+
+    def version (self, target: str | None = None) -> Output :
+        prepared = self._setup_context()
+        if not prepared.ok :
+            return prepared
+
+        current = self.config.project.version
+
+        # Senza argomenti: mostra soltanto la versione.
+        if target is None :
+            return Output(
+                Text(f"Project version: {current}"),
+                ok=True,
+                exit_code=0,
+            )
+
+        # Calcola e valida la nuova versione.
+        try :
+            new_version = VersionService.resolve(current, target)
+        except ValueError as exc :
+            return Output(
+                Text(
+                    str(exc),
+                    style=TextStyle.from_level("error")
+                ),
+                ok=False,
+                exit_code=1,
+            )
+
+        if current == new_version :
+            return Output(
+                Text(f"Project version is already {current}."),
+                ok=True,
+                exit_code=0,
+            )
+
+        # Prepara l'eventuale aggiornamento di __version__.
+        init_path = None
+        init_update = None
+
+        try :
+            if self.config.project.category == "package" :
+                category_service = CategoryService(self.root)
+                init_path = (category_service.get_module_path() / "__init__.py")
+                init_update = VersionService.prepare_init_update(
+                    init_path,
+                    new_version
+                )
+
+            # Aggiorna prima il modello e salva la configurazione.
+            self.config.set_project_version(new_version)
+
+            # Aggiorna __version__, se è stato riconosciuto.
+            if init_update is not None and init_path is not None :
+                original, updated = init_update
+                try :
+                    write_text(init_path, updated)
+                except Exception :
+                    # Tentativo di ripristino della versione precedente.
+                    self.config.set_project_version(current)
+                    raise
+
+        except (OSError, ValueError) as exc:
+            return Output(
+                Text(
+                    "Could not update project version.",
+                    str(exc),
+                    style=TextStyle().from_level("error"),
+                ),
+                ok=False,
+                exit_code=1,
+            )
+
+
+        payload = [
+            Text(
+                f"Project version updated: {current} -> {new_version}",
+                style=TextStyle.from_level("success")
+            ),
+        ]
+
+        if init_update is not None :
+            payload.append(
+                Text("Updated package __version__.")
+            )
+
+        if (
+            self.config.project.category == "package"
+            and (self.root / "pyproject.toml").exists()
+        ) :
+            payload.append(
+                Text(
+                    "Build metadata may be outdated.",
+                    "Run 'core init-build --force' before building.",
+                    style=TextStyle().from_level("warning"),
+                )
+            )
+
+        return Output(
+            *payload,
+            ok=True,
+            exit_code=0,
+        )
+
+
+    def rename_module (self, new_name: str) -> Output :
+        prepared = self._setup_context()
+
+        if not prepared.ok :
+            return prepared
+
+        service = ModuleService(
+            root=self.root,
+            config=self.config
+        )
+
+        try :
+            old_name, new_name = service.rename(new_name)
+
+        except (ValueError, OSError) as exc:
+            return Output(
+                Text(
+                    "Could not rename project module.",
+                    str(exc),
+                    style=TextStyle().from_level("error")
+                ),
+                ok=False,
+                exit_code=1
+            )
+
+
+        return Output(
+            Text(
+                f"Module renamed: {old_name} -> {new_name}",
+                style=TextStyle().from_level("success")
+            ),
+            Text(
+                "Existing Python imports and other module references were not updated.",
+                style=TextStyle().from_level("warning")
+            ),
+            ok=True,
+            exit_code=0
+        )
+
         
 
     def info (self) -> Output :
@@ -873,6 +1027,7 @@ class ProjectManager :
         
         # Config properties
         project_name = self.config.project.name
+        project_module = self.config.project.module
         project_version = self.config.project.version
         project_category = self.config.project.category
         framework = self.config.framework.name
@@ -916,6 +1071,7 @@ class ProjectManager :
             ),
             Table(
                 Row(["Section", "Property", "Value"]),
+                Row(["Project", "Module", project_module]),
                 Row(["Project", "Version", project_version]),
                 Row(["Project", "category", project_category]),
                 Row(["Project", "Framework", framework]),
@@ -992,7 +1148,7 @@ class ProjectManager :
             return Output (
                 Text (
                     "Invalid package layout for build initialization.",
-                    f"Expected package path: {str(self.root / "src" / self.config.project.name)}",
+                    f"Expected package path: {category_service.get_module_path()}",
                     style=TextStyle().from_level("error"),
                 ),
                 ok=False,
@@ -1062,14 +1218,48 @@ class ProjectManager :
                 ok=False,
                 exit_code=1,
             )
+
+        # 4. Verify that build metadata matches corellia.toml.
+        try :
+            with pyproject_path.open("rb") as file :
+                pyproject_data = tomllib.load(file)
+
+            build_version = pyproject_data["project"]["version"]
+
+        except (OSError, tomllib.TOMLDecodeError, KeyError, TypeError) as exc:
+            return Output(
+                Text(
+                    "Could not read the build project version.",
+                    str(exc),
+                    style=TextStyle().from_level("error"),
+                ),
+                ok=False,
+                exit_code=1,
+            )
+
+        project_version = self.config.project.version
+
+        if build_version != project_version :
+            return Output(
+                Text(
+                    "Build metadata version does not match corellia.toml.",
+                    f"corellia.toml: {project_version}",
+                    f"pyproject.toml: {build_version}",
+                    "",
+                    "Run 'core init-build --force' to regenerate build metadata.",
+                    style=TextStyle().from_level("error"),
+                ),
+                ok=False,
+                exit_code=1,
+            )
         
-        # 4. Validate expected package layout
+        # 5. Validate expected package layout
         category_service = CategoryService(self.root)
         if not category_service.validate_layout() :
             return Output (
                 Text (
                     "Invalid package layout for build initialization.",
-                    f"Expected package path: {str(self.root / "src" / self.config.project.name)}",
+                    f"Expected package path: {category_service.get_module_path()}",
                     style=TextStyle().from_level("error"),
                 ),
                 ok=False,
@@ -1077,13 +1267,13 @@ class ProjectManager :
             )
         
 
-        # 5. Prepare environment
+        # 6. Prepare environment
         ready = self._ensure_environment_ready(recreate=False)
         if not ready.ok :
             return ready
         
 
-        # 6. Clean old build artifacts
+        # 7. Clean old build artifacts
         try :
             category_service.clean_build_artifacts()
         except Exception as exc :
@@ -1098,7 +1288,7 @@ class ProjectManager :
         )
 
         
-        # 7. Ensure `build` is installed in project venv
+        # 8. Ensure `build` is installed in project venv
         python_path = self.virtual_env.get_python_path()
         try :
             self.virtual_env.ensure_build_installed()
@@ -1114,7 +1304,7 @@ class ProjectManager :
             )
         
         
-        # 8. Run package build
+        # 9. Run package build
         try :
             self.virtual_env.run_build()
         except Exception as exc :
@@ -1129,7 +1319,7 @@ class ProjectManager :
             )
         
         
-        # 9. Collect generated artifacts
+        # 10. Collect generated artifacts
         dist_path = self.root / "dist"
         artifacts = []
         if dist_path.exists() :

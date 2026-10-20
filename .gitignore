@@ -19,6 +19,7 @@ dist/
 
 # macOS
 .DS_Store
+__MACOSX
 
 # IDE
 .vscode/
@@ -36,3 +37,6 @@ docs-alpha/
 
 # personal files
 pf-*
+
+# backups
+*.bak

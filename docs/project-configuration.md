@@ -13,6 +13,7 @@ It defines:
 - project metadata
 - Python version
 - project category
+- main importable module name
 - dependencies
 - scripts
 - optional framework configuration
@@ -28,6 +29,7 @@ A typical corellia.toml looks like this:
 ```toml
 [project]
 name = "myproject"
+module = "myproject"
 version = "0.1.0"
 python = "3.12"
 category = "package"
@@ -62,11 +64,17 @@ The project name.
 Used for:
 
 - directory naming
-- package naming (for package category)
+- distribution name (for `package` projects, including PyPI metadata)
 - build artifacts
 
+`module`
+The name of the main importable Python package directory. This is distinct from the distribution name (`name`); for example `name = "my-project"` and `module = "my_project"`. New projects default to the normalized project name for `package`, `app` for `app`, and `config` for `deploy`. Module names must be valid lowercase Python identifiers (not keywords).
+
+`core module rename NEW_NAME` renames the main module directory and updates the configuration. It does **not** rewrite Python imports or other references; Django projects are not supported by this rename command yet.
+
 `version`
-The project version.
+The project version. Use `core version` to inspect it or `core version patch|minor|major|X.Y.Z` to update it. The current command supports numeric `MAJOR.MINOR.PATCH` versions; for a `package` project, an existing literal `__version__` assignment in its `__init__.py` is updated when recognized. `pyproject.toml` is not automatically regenerated.
+
 Used for:
 
 - build artifacts (dist/)
@@ -249,9 +257,9 @@ Corellia reads `corellia.toml` and:
 - installs dependencies
 - executes scripts
 - generates build configuration (`pyproject.toml`)
-- determines project structure
+- determines project structure through the declared category and module name
 
-The file is never partially applied, changes always affect the entire project behavior
+Corellia validates the configuration when loading project context. Existing files overwritten by Corellia use a temporary file and atomic replacement where supported; creating a new file uses a normal write. The TOML serializer does not currently preserve user comments or custom formatting when rewriting the configuration.
 
 ---
 
@@ -298,7 +306,7 @@ Corellia manages files such as:
 
 However, minor adjustments may be applied when necessary, for example adding a project description to `pyproject.toml`
 
-Be aware that manually edited files may be overwritten by future Corellia operations.
+Be aware that manually edited files may be overwritten by future Corellia operations. In particular, `core init-build --force` regenerates the entire `pyproject.toml`; custom settings are not yet merged or preserved. Improved TOML round-tripping and preservation of user-defined build settings are planned.
 
 
 <!-- ---

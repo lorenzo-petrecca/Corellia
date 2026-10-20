@@ -6,3 +6,4 @@ from corellia.commands.run import run
 from corellia.commands.info import info
 from corellia.commands.init_build import init_build
 from corellia.commands.build import build
+from corellia.commands.version import version

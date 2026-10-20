@@ -1,5 +1,6 @@
 from pathlib import Path
 from importlib.resources import files
+from corellia.utils.file_io import write_text
 
 START_CODE_BLOCK = "#$START"
 END_CODE_BLOCK = "#$END"
@@ -28,17 +29,17 @@ class ScaffoldService :
             content = "\n".join([content, row_left_space])
             content = "".join([content, row])
         
-        path.write_text(content, encoding='utf-8')
+        write_text(path, content)
 
     
     @staticmethod
     def touch (path: Path) -> None:
-        path.write_text("", encoding="utf-8")
+        write_text(path, "")
 
     
     @staticmethod
     def from_template (path: Path, template_name: str) :
         template = files("corellia.templates").joinpath(template_name)
-        path.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
+        write_text(path, template.read_text(encoding="utf-8"))
 
         

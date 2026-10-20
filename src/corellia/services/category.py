@@ -1,11 +1,13 @@
 from pathlib import Path
 import shutil
 import tomli_w
+from packaging.utils import canonicalize_name
 
-from corellia.config import CorelliaConfig
+from corellia.config import CorelliaConfig, default_module_name
 from corellia import constants as cs
-from corellia.models import CATEGORIES
+from corellia.models import CATEGORIES, Category
 from corellia.services.scaffold import ScaffoldService, START_CODE_BLOCK, END_CODE_BLOCK
+from corellia.utils.file_io import write_text
 
 
 class CategoryService :
@@ -16,6 +18,36 @@ class CategoryService :
         self.project_name = self.config.project.name
         
 
+    def get_module_name (self) -> str :
+        module = self.config.project.module
+        if module :
+            return module
+        if self.category in CATEGORIES:
+            category: Category = self.category
+        else :
+            category = "package"
+
+        return default_module_name(
+            self.config.project.name,
+            category,
+        )
+
+    def get_module_path (self) -> Path :
+        """
+        Ritorna il path della cartella modulo (varia a seconda della categoria)
+        """
+        module = self.get_module_name()
+
+        if self.category in CATEGORIES :
+            match self.category :
+                case "package" :
+                    return self.root / "src" / module
+                case "app" | "deploy":
+                    return self.root / module
+
+        raise ValueError(
+            f"Unsupported project category: {self.category}"
+        )
       
 
     def scaffold (self) -> None :
@@ -33,7 +65,7 @@ class CategoryService :
 
 
     def _scaffold_package (self) -> None :
-        module_path = self.root / "src" / self.project_name
+        module_path = self.get_module_path()
         ScaffoldService.ensure_dir(module_path)
         ScaffoldService.write_file(
             module_path / "__init__.py",
@@ -48,7 +80,7 @@ class CategoryService :
         
 
     def _scaffold_app (self) -> None :
-        app_path = self.root / "app"
+        app_path = self.get_module_path()
         ScaffoldService.write_file(
             self.root / "main.py",
             'def main() -> None:',
@@ -68,7 +100,10 @@ class CategoryService :
         ScaffoldService.touch(app_path / "__init__.py")
 
     def _scaffold_deploy (self) -> None :
-        pass
+        module_path = self.get_module_path()
+
+        ScaffoldService.ensure_dir(module_path)
+        ScaffoldService.touch(module_path / "__init__.py")
 
 
     def _create_readme (self) -> None :
@@ -119,8 +154,8 @@ class CategoryService :
             },
         }
         pyproject_path = root / "pyproject.toml"
-        with pyproject_path.open('wb') as file :
-            tomli_w.dump(data, file)
+        content = tomli_w.dumps(data)
+        write_text(pyproject_path, content)
 
 
 
@@ -135,19 +170,26 @@ class CategoryService :
         return False
 
     def _validate_package (self) -> bool :
-        package_dir = self.root / "src" / self.config.project.name
-        init_file = package_dir / "__init__.py"
-
-        if not package_dir.exists() or not init_file.exists():
-            return False
-        
-        return True
+        module_path = self.get_module_path()
+        return(
+            module_path.is_dir()
+            and (module_path / "__init__.py").is_file()
+        )
 
     def _validate_app (self) -> bool :
-        return True
+        module_path = self.get_module_path()
+        return(
+            module_path.is_dir()
+            and (module_path / "__init__.py").is_file()
+            and (self.root / "main.py").is_file()
+        )
         
     def _validate_deploy (self) -> bool :
-        return True
+        module_path = self.get_module_path()
+        return(
+            module_path.is_dir()
+            and (module_path / "__init__.py").is_file()
+        )
     
 
 
@@ -176,7 +218,10 @@ class CategoryService :
         if not dist_dir.exists():
             return
 
-        prefix = f"{self.project_name}-{self.config.project.version}"
+        prefix = (
+            f"{canonicalize_name(self.project_name).replace('-', '_')}"
+            f"-{self.config.project.version}"
+        )
 
         for path in dist_dir.iterdir():
             if not path.is_file():

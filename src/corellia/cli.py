@@ -9,6 +9,8 @@ from corellia.commands import (
     info,
     init_build,
     build,
+    version,
+    module,
 )
 
 
@@ -93,3 +95,14 @@ app.command(
     help="Build the current Corellia package project."
 )(build)
 
+app.command(
+    name="version",
+    help="Show or update the current project version."
+)(version)
+
+
+app.add_typer(
+    module.app,
+    name="module",
+    help="Manage the project's Python module.",
+)

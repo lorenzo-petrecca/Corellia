@@ -130,7 +130,16 @@ Handles:
 - category-specific logic
 - build file generation (pyproject.toml)
 - build artifact cleanup
+- resolution of the category-specific module directory from `[project].module`
 
+
+### Version Service
+
+Resolves numeric `MAJOR.MINOR.PATCH` version changes and prepares updates to an existing `__version__` assignment in a package `__init__.py`.
+
+### Module Service
+
+Validates and renames a project's main module directory, then updates `corellia.toml` with rollback attempts if configuration saving fails. It does not rewrite imports and currently rejects Django projects.
 
 ### Scaffold Service
 
@@ -262,6 +271,7 @@ This file controls:
 - scripts
 - project structure
 - build configuration
+- project module paths and version metadata
 
 All other artifacts are derived from it.
 
@@ -301,10 +311,20 @@ Examples:
 - CategoryService
 - ScaffoldService
 - DjangoService
+- VersionService
+- ModuleService
 
 
 ---
 
+
+## File Writing
+
+When overwriting an existing regular file, Corellia uses a temporary file in the same directory followed by atomic replacement where supported. New files are written normally. This is a per-file safeguard, not a transaction across `corellia.toml`, package sources and generated metadata.
+
+Configuration serialization currently does not preserve original TOML comments or formatting. Regeneration of `pyproject.toml` also replaces custom edits; both improvements are planned.
+
+---
 
 ## Summary
 

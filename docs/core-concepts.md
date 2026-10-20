@@ -20,13 +20,13 @@ The `corellia.toml` file is the central configuration of a project.
 
 It defines:
 
-- project metadata
+- project metadata, including a distinct distribution name and Python module name
 - Python version
 - category
 - dependencies
 - scripts
 
-All operations performed by Corellia derive from this file.
+All operations performed by Corellia derive from this file. The `[project].name` field identifies the project/distribution; `[project].module` identifies the main Python package directory. `core version` manages `[project].version`, and `core module rename` updates the module directory and its configuration field.
 
 ---
 
@@ -134,4 +134,4 @@ Corellia generates several artifacts from the project configuration:
 - `pyproject.toml` → packaging configuration (for package)
 - `dist/` → build output
 
-These artifacts are **derived**, not manually edited.
+These artifacts are **derived**. Corellia does not currently preserve manual additions to `pyproject.toml` when regenerating it with `core init-build --force`.

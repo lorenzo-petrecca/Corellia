@@ -23,6 +23,9 @@ Corellia currently provides:
 - environment and dependency orchestration
 - script execution
 - package build support (`package` category)
+- distinct project/distribution and importable module names (`project.module`)
+- project version management and main module renaming
+- atomic replacement when overwriting existing files
 
 ---
 
@@ -39,11 +42,14 @@ Corellia currently provides:
 - improve `pyproject.toml` generation
 - allow limited customization of build configuration
 - refine artifact management
+- preserve manual additions to `pyproject.toml` when regenerating build configuration
+- preserve comments and original formatting in `corellia.toml` when updating configuration
 
 ### Improve Developer Experience
 - better error messages
 - improved CLI feedback
 - validation of configuration
+- improve handling of older configurations without an explicit `[project].module` field
 
 ---
 

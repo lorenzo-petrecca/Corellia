@@ -47,14 +47,14 @@ It is designed to:
 ```
 project/
   src/
-    <project_name>/
+    <module_name>/
       __init__.py
   tests/
 ```
 
 #### Characteristics
 
-- uses `src/` layout
+- uses `src/` layout; the package directory follows `[project].module`, which may differ from `[project].name`
 - supports packaging and distribution
 - supports `core init-build` and `core build`
 - produces artifacts in `dist/`
@@ -87,13 +87,14 @@ It is designed to:
 ```
 project/
   main.py
-  app/
+  <module_name>/
     __init__.py
 ```
 
 #### Characteristics
 
 - entrypoint-based execution (`main.py`)
+- main module directory defaults to `app` and follows `[project].module`
 - does not use `src/` layout
 - focuses on runtime behavior rather than distribution
 
@@ -121,7 +122,7 @@ Examples include:
 
 #### Structure
 
-Currently minimal and subject to future evolution.
+Currently minimal and subject to future evolution. The base scaffold creates `<module_name>/__init__.py` (default module name: `config`).
 
 May include:
 
@@ -154,6 +155,8 @@ This includes:
 - directories
 - initial files
 - project layout
+
+For all three categories, the module directory is determined by `[project].module`. Changing that TOML field manually does not rename the existing directory: use `core module rename NEW_NAME`. This command does not update references in code and currently rejects Django projects.
 
 The scaffolding is handled automatically during:
 

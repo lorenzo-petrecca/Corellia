@@ -4,7 +4,7 @@
 
 Before using Corellia, make sure the following tools are installed on your system:
 
-- **Python** (recommended: 3.10+)
+- **Python** (3.12+ required)
 - **pyenv** (for Python version management)
 - **git** (optional, but recommended)
 
@@ -47,6 +47,8 @@ Corellia will guide you through an interactive setup:
 - category (`package`, `app`, `deploy`)
 - optional framework (e.g. `django`)
 
+Corellia also chooses a default main module name: the normalized project name for `package`, `app` for `app`, and `config` for `deploy`. The value appears in `[project].module`.
+
 After confirmation, Corellia will:
 
 1. create the project directory
@@ -57,6 +59,22 @@ After confirmation, Corellia will:
 6. scaffold the project based on category
 7. optionally initialize a Git repository
 
+
+## Manage Project Version and Module
+
+Use `core version` to inspect the current project version, or increment it with:
+
+```bash
+core version patch
+core version minor
+core version major
+```
+
+You can also specify an explicit numeric version (for example, `core version 1.2.0`). To rename the main module directory and update `corellia.toml`, use `core module rename new_module`. Imports and other references are not rewritten automatically; Django module renaming is not yet supported.
+
+For `package` projects, regenerate outdated build metadata with `core init-build --force` before building. This overwrites manual changes to `pyproject.toml`.
+
+---
 
 ## Install and Sync Dependencies
 

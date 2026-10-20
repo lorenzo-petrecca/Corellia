@@ -1,5 +1,6 @@
 import re
 from typing import Any, Callable
+import keyword
 
 FieldValidator = Callable[[Any, str], list[str]]
 
@@ -46,4 +47,26 @@ class Validators :
             
             return []
         
+        return validator
+
+
+    @staticmethod
+    def python_module_name () -> FieldValidator :
+        def validator (value: Any, field_name: str) -> list[str] :
+            if not isinstance(value, str) :
+                return [f"{field_name} must be a string"]
+
+            if (
+                not value
+                or not value.isascii()
+                or not value.isidentifier()
+                or keyword.iskeyword(value)
+                or value != value.lower()
+            ):
+                return [
+                    f"{field_name} must be a valid lowercase Python module name"
+                ]
+
+            return []
+
         return validator

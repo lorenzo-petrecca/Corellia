@@ -304,6 +304,14 @@ class ProjectSectionModel(ConfigSection) :
             )
         ]
     )
+    module: ConfigField[str] = ConfigField(
+        "single",
+        # required=True, # -> al momento no, in modo da mantenere compatibilità minima con progetti precedenti
+        default="",
+        validators=[
+            Validators.python_module_name()
+        ]
+    )
     version: ConfigField[str] = ConfigField("single", required=True)
     python: ConfigField[str] = ConfigField("single", required=True)
     category: ConfigField[str] = ConfigField("single", required=True, validators=[Validators.allowed_values(set(CATEGORIES)),])

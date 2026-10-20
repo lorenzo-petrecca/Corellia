@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import tomllib
 import tomli_w
 from importlib.resources import files
@@ -14,6 +15,28 @@ from corellia.models import (
     ConfigIntegrityReport,
 )
 from corellia import constants as cs
+from corellia.models import CATEGORIES, Category
+from corellia.utils.file_io import write_text
+
+
+def default_module_name(name: str, category: Category) -> str:
+    match category:
+        case "package":
+            module = name.replace("-", "_")
+
+            if module[0].isdigit():
+                module = f"_{module}"
+
+            return module
+
+        case "app":
+            return "app"
+
+        case "deploy":
+            return "config"
+
+        case _:
+            raise ValueError(f"Unsupported project category: {category}")
     
 
 
@@ -75,13 +98,22 @@ class CorelliaConfig :
         if framework is not None and framework.lower().strip() == "django" :
             scripts_template.update(django_scripts)
 
+        if create_model.project_category in CATEGORIES :
+            category: Category = create_model.project_category
+        else :
+            category: Category = "package"
+
 
         data = CorelliaConfigModel(
             project=ProjectSectionModel(
                 name=create_model.project_name,
+                module=default_module_name(
+                    create_model.project_name,
+                    category,
+                ),
                 version="0.1.0",
                 python=create_model.project_python_version,
-                category=create_model.project_category,
+                category=category,
             ),
             environment=EnvironmentSectionModel(),
             framework=FrameworkSectionModel(
@@ -97,11 +129,13 @@ class CorelliaConfig :
     
 
     def save (self) -> None:
-        with self.path.open('wb') as file :
-            tomli_w.dump(self.model.to_dict(), file)
+        content = tomli_w.dumps(self.model.to_dict())
 
         if not self.authors :
-            self._append_template("authors_example.txt")
+            template = files("corellia.templates").joinpath("authors_example.txt")
+            content += "\n" + template.read_text(encoding="utf-8")
+
+        write_text(self.path, content)
     
 
  
@@ -164,6 +198,14 @@ class CorelliaConfig :
         return name in self.scripts
     
 
+    def set_project_version(self, version: str) -> None:
+        self.model.project.version = version
+        self.save()
+
+
+    def set_project_module(self, module: str) -> None:
+        self.model.project.module = module
+        self.save()
 
     
     def set_dependency (self, package: str, version: str, dev: bool) -> None:
@@ -187,11 +229,3 @@ class CorelliaConfig :
     def integrity(self) -> ConfigIntegrityReport:
         return self.model.integrity
 
-
-
-    def _append_template (self, filename: str) -> None :
-        template = files("corellia.templates").joinpath(filename)
-
-        with self.path.open("a", encoding="utf-8") as file :
-            file.write("\n")
-            file.write(template.read_text(encoding="utf-8"))

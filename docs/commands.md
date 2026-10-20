@@ -14,6 +14,8 @@ Corellia provides a set of commands to manage the entire lifecycle of a project.
 | `core info`       | Show project information                 |
 | `core init-build` | Initialize packaging configuration       |
 | `core build`      | Build a distributable package            |
+| `core version`    | Show or change the project version       |
+| `core module rename` | Rename the main Python module        |
 
 
 All commands operate based on the current project directory and its `corellia.toml`.
@@ -67,7 +69,7 @@ The command performs the following steps:
 6. upgrades `pip`
 7. installs dependencies and dev-dependencies
 8. bootstraps the selected framework
-9. scaffolds the project based on category
+9. scaffolds the project based on category and sets the default `[project].module`
 10. creates `.gitignore`
 11. initializes a Git repository (if available)
 
@@ -468,6 +470,7 @@ The command reads the current project configuration and inspects the local envir
 Displays core project metadata:
 
 - name
+- module (main Python package directory)
 - version
 - category
 - framework
@@ -538,6 +541,7 @@ This command generates the `pyproject.toml` file required to build a distributab
 
 ```bash
 core init-build
+core init-build --force  # regenerate an existing pyproject.toml
 ```
 
 ### Supported Categories
@@ -568,7 +572,7 @@ Before running this command:
 - The package structure must exist:
 
     ```
-    src/<project_name>/__init__.py
+    src/<module_name>/__init__.py
     ```
 
 ### Generated File
@@ -590,7 +594,8 @@ After running the command the project is ready for packaging.
 ### Notes
 - The file is generated from `corellia.toml`
 - It is considered a **derived artifact**
-- It may be regenerated if needed
+- It may be regenerated with `core init-build --force` when it already exists
+- `--force` overwrites the entire file: manually added settings are not preserved
 
 
 ---
@@ -624,6 +629,7 @@ This command is currently supported only for:
 Before running this command:
 
 - `pyproject.toml` must exist
+- `[project].version` in `pyproject.toml` must match `corellia.toml` (use `core init-build --force` to regenerate it if needed)
 - the project must have a valid package structure
 - the environment must be properly initialized
 
@@ -686,3 +692,74 @@ After running the command the project is ready for distribution.
 - The command uses the project’s Python environment
 - No global Python configuration is required
 - Build behavior depends on `pyproject.toml`
+- The distribution metadata uses `[project].name`; setuptools discovers importable packages under `src/`, including a module with a different name
+
+---
+
+## `core version`
+
+### Overview
+
+Shows or changes the version of the current project. The authoritative version is `[project].version` in `corellia.toml`. This is different from `core --version`, which reports the installed Corellia CLI version.
+
+### Syntax
+
+```bash
+core version
+core version patch
+core version minor
+core version major
+core version 1.2.3
+```
+
+### What It Does
+
+- With no argument, displays the current project version.
+- With `patch`, `minor`, or `major`, increments that component and resets lower components as appropriate.
+- With `X.Y.Z`, sets an explicit version. The current implementation accepts numeric `MAJOR.MINOR.PATCH` versions.
+- Updates `corellia.toml`; for `package` projects, also updates an existing, recognized literal `__version__` assignment in the main package's `__init__.py`.
+- Does **not** automatically regenerate `pyproject.toml`.
+
+### Notes
+
+After a package version change, run `core init-build --force` before `core build` if the build metadata is outdated. Regeneration overwrites custom edits to `pyproject.toml`. Git tags, changelogs, prerelease version schemes and publishing are not part of this command.
+
+---
+
+## `core module rename`
+
+### Overview
+
+Renames the main Python module directory and updates `[project].module` in `corellia.toml`. It does **not** change `[project].name`, the distribution name.
+
+### Syntax
+
+```bash
+core module rename new_module
+```
+
+### What It Does
+
+1. Validates the new module name (lowercase Python identifier, not a keyword).
+2. Checks that the original module directory exists and the destination is free.
+3. Renames `src/<module>/` for a `package`, or `<module>/` at the project root for `app` and `deploy`.
+4. Updates `corellia.toml`; if saving fails, attempts to restore the original directory.
+
+### Constraints
+
+- A project with no explicitly configured module must first be configured manually.
+- Django project module renaming is not yet supported.
+- Existing Python imports and other module references are **not** rewritten; review them manually after renaming.
+- Existing target files or directories are never overwritten.
+
+### Example
+
+For a `package` distribution named `my-project` with a module `my_project`:
+
+```bash
+core module rename my_module
+core init-build --force
+core build
+```
+
+The distribution name remains `my-project`, while the wheel includes the importable package `my_module`.

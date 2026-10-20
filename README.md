@@ -83,6 +83,10 @@ Instead, it orchestrates them through a unified workflow.
 - package build workflow
 - structured project layouts
 - framework-aware scaffolding (experimental)
+- configurable Python module name (`project.module`)
+- project version management (`core version`)
+- main module renaming (`core module rename`)
+- safer overwrites of existing files
 
 ---
 
@@ -188,7 +192,9 @@ core init-build
 core build
 ```
 
-Corellia generates a pyproject.toml artifact and builds the project using the standard Python packaging workflow.
+Corellia generates a `pyproject.toml` artifact and builds the project using the standard Python packaging workflow.
+
+If you change the project version, use `core version patch`, `core version minor`, `core version major`, or `core version X.Y.Z`. To rename the main Python module, use `core module rename new_module` (existing imports are not rewritten). After changing a package version, regenerate build metadata with `core init-build --force` before `core build`.
 
 
 ---
@@ -213,6 +219,7 @@ core build
 
 [project]
 name = "myproject"
+module = "myproject"
 version = "0.1.0"
 python = "3.12.10"
 category = "package"
@@ -267,7 +274,7 @@ Some areas of the project are still considered experimental or only partially im
 > - `app` project workflows
 > - `deploy` project workflows
 > - framework-specific integrations
-> - advanced build metadata generation
+> - advanced build metadata generation and preservation of manual `pyproject.toml` edits
 
 > [!CAUTION]
 > **Not Yet Supported**
